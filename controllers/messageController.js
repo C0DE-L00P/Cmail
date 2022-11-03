@@ -1,3 +1,5 @@
+// const { cAxios: axios } = require("../server");
+const axios = require('axios')
 const Attachment = require("../models/attachmentSchema");
 const Message = require("../models/messageSchema");
 
@@ -14,6 +16,8 @@ const messages_get_id = (mreq, mres) => {
 };
 
 const messages_put_id = (mreq, mres) => {
+  
+  //TODO if put new receivers just add to inbox for them
   Message.findByIdAndUpdate(
     mreq.params.id,
     mreq.body,
@@ -36,9 +40,10 @@ const messages_delete_id = (mreq, mres) => {
 
 const messages_post = async (mreq, mres) => {
   //Save the data in the database
-  mreq.body.attachments = await mreq.files.attachments.map((file) =>
+  
+  mreq.body.attachments = mreq.files.attachments? await mreq.files.attachments.map((file) =>
     file.path.replace("public", process.env.HOST)
-  );
+  ): [];
 
   let result = await Attachment.insertMany(mreq.files.attachments);
   if (!result) return mres.sendStatus(400);
@@ -51,9 +56,18 @@ const messages_post = async (mreq, mres) => {
   const message = new Message(mreq.body);
 
   let res_message = await message.save();
-  
+
   if (!res_message)
     return mres.status(500).json({ message: "Error while saving model" });
+
+  //Save message id in the user data (Sender/Receivers)
+  console.log('res',res_message,res_message._id.toString())
+
+  axios.put(process.env.HOST + "/api/users/" + mreq.body.from, {sent: res_message._id.toString()})
+
+  mreq.body.to.map((receiver) =>
+    axios.put(process.env.HOST + "/api/users/" + receiver, {inbox: res_message._id})
+  );
 
   mres.status(200).json(res_message);
 };

@@ -5,14 +5,57 @@ const bcrypt = require("bcrypt");
 
 const users_get_id = (mreq, mres) => {
   User.findById(mreq.params.id)
+    .populate([
+      {
+        path: "inbox",
+        select: "name",
+        model: "Message",
+        options: {
+          sort: { date: -1 },
+          limit: 10,
+        },
+      },
+    ])
     .then((res) => (res ? mres.json(res) : mres.sendStatus(404)))
     .catch(() => mres.sendStatus(404));
 };
 
 const users_put_id = (mreq, mres) => {
+  //rItems: r for remove
+  let {
+    inbox,
+    sent,
+    marked,
+    draft,
+    trash,
+    rMarked,
+    rDraft,
+    rTrash,
+    rInbox,
+    rSent,
+    ...rest
+  } = mreq.body;
+  console.log("body", mreq.body, "rest", rest);
+
   User.findByIdAndUpdate(
     mreq.params.id,
-    mreq.body,
+    {
+      ...rest,
+      $addToSet: {
+        inbox,
+        sent,
+        draft,
+        marked,
+        trash,
+      },
+      $pull: {
+        draft: rDraft,
+        marked: rMarked,
+        trash: rTrash,
+        inbox: rInbox,
+        sent: rSent,
+      },
+    },
     { new: true },
     function (err, docs) {
       if (err) return mres.sendStatus(404);
@@ -31,7 +74,6 @@ const users_delete_id = (mreq, mres) => {
 // --------------------- General
 
 const users_post = (mreq, mres) => {
-
   bcrypt.hash(mreq.body.password, 10, function (err, hash) {
     if (err != null) return mres.status(400).json({ message: err });
 

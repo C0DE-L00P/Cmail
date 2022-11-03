@@ -4,6 +4,8 @@ const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
 const app = express();
+const cAxios = require("axios").create({baseUrl: process.env.HOST});
+module.exports = cAxios;
 
 var corsOptions = {
   origin: "*",
